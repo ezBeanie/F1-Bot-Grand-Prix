@@ -1,43 +1,28 @@
 import numpy as np
 # from nn_tflearn import alexnet2
 # from nn_inception import inception_v3
-from models import inception_v3
+# from models import inception_v3
+from model import formula_network
 from screen import grab_screen, place_emulator
 import cv2
 import time
-import config
+from config import IMG_WIDTH, IMG_HEIGHT, SCREEN_REGION, RESIZE_RATIO, training_file_name, testing_file_name, HOST, PORT
 from util import thread_on_key
 from getkeys import key_check
 import http.server
 import threading
 
-IMG_WIDTH = config.IMG_WIDTH
-IMG_HEIGHT = config.IMG_HEIGHT
 
-SCREEN_POS_X = config.SCREEN_POS_X
-SCREEN_POS_Y = config.SCREEN_POS_Y
-SCREEN_REGION = (SCREEN_POS_X, SCREEN_POS_Y, IMG_WIDTH + SCREEN_POS_X, IMG_HEIGHT + SCREEN_POS_Y)
-
-CROPPED_WIDTH = config.IMG_WIDTH
-CROPPED_HEIGHT = IMG_HEIGHT - 100
-CROPPED_POS_X = SCREEN_POS_X
-CROPPED_POS_Y = SCREEN_POS_Y + 68
-CROPPED_REGION = (CROPPED_POS_X, CROPPED_POS_Y, CROPPED_WIDTH + CROPPED_POS_X, CROPPED_HEIGHT + CROPPED_POS_Y)
-
-INPUT_DATA_RATIO = config.INPUT_DATA_RATIO
-
-HOST = config.HOST
-PORT = config.PORT
+WIDTH = IMG_WIDTH // RESIZE_RATIO
+HEIGHT = IMG_HEIGHT // RESIZE_RATIO
 
 # file_name = config.file_name
-WIDTH = config.IMG_WIDTH // config.INPUT_DATA_RATIO
-HEIGHT = (config.IMG_HEIGHT - 100) // config.INPUT_DATA_RATIO
 LR = 0.0005
 # EPOCHS = 1
 # MODEL_NAME = "f1-bot-{}-{}-{}.model".format("alexnet2", LR, EPOCHS)
-MODEL_NAME = "models\\f1-bot-alexnet2-0.001-10.model\\f1-bot-alexnet2-0.001-10.model"
+MODEL_NAME = "models\\f1-bot-formula_network-0.0005-3.model\\f1-bot-formula_network-0.0005-3.model"
 
-model = inception_v3(WIDTH, HEIGHT, LR, 4)
+model = formula_network(width=WIDTH, height=HEIGHT, lr=LR, output=4)
 model.load(MODEL_NAME)
 
 inputs = []
@@ -93,7 +78,7 @@ def set_connected():
 def encoded_inputs():
 	global inputs
 	if len(inputs) < 4:
-		return b"0x0x0x0"
+		return b"0x0x0.5x0.5"
 	else:
 		if int(round(inputs[0])) == 1:
 			i = "Truex"
@@ -103,6 +88,10 @@ def encoded_inputs():
 			i += "Truex"
 		else:
 			i += "Falsex"
+		if inputs[2] > inputs[3]:
+			i += str(-inputs[2])
+		else:
+			i += str(inputs[3])
 		# i = str(int(round(inputs[0]))) + "x"
 		# i += str(int(round(inputs[1]))) + "x"
 		# i += str(inputs[2]) + "x"
@@ -124,20 +113,25 @@ def test_nn():
 	while True:
 		timestamp = time.time()
 		if not paused:
-			screen = grab_screen(CROPPED_REGION)
-			# print("frame took {} seconds".format(time.time() - timestamp))
-			screen = cv2.resize(screen, (int(CROPPED_WIDTH // INPUT_DATA_RATIO),
-										 int(CROPPED_HEIGHT // INPUT_DATA_RATIO)))
-			# screen = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
+			# screen = grab_screen(CROPPED_REGION)
+			screen = cv2.resize(grab_screen(SCREEN_REGION), ((IMG_WIDTH // RESIZE_RATIO), (IMG_HEIGHT // RESIZE_RATIO)))
 			screen = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
-			cv2.imshow("test", screen)
-			if cv2.waitKey(25) & 0xFF == ord("q"):
-				cv2.destroyAllWindows()
+
+			# print("frame took {} seconds".format(time.time() - timestamp))
+
+			# screen = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
+			# cv2.imshow("test", screen)
+			# if cv2.waitKey(25) & 0xFF == ord("q"):
+			# 	cv2.destroyAllWindows()
+
 			prediction = model.predict([screen.reshape(WIDTH, HEIGHT, 1)])[0]
+
 			global inputs
 			inputs = prediction
-			print(inputs)
+
+			# print("L:" + str(round(inputs[2], 8)) + " R:" + str(round(inputs[3], 8)))
 			print(encoded_inputs())
+
 		keys = key_check()
 		if "P" in keys:
 			if paused:

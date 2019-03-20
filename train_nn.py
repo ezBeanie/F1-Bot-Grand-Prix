@@ -2,19 +2,20 @@ import os
 
 import numpy as np
 
-import config
+from config import IMG_WIDTH, IMG_HEIGHT, RESIZE_RATIO, training_file_name, testing_file_name
 import tflearn
-from models import otherception3
+# from models import otherception3
+from model import formula_network
 
-testing_file_name = config.testing_file_name
-training_file_name = config.training_file_name
+# testing_file_name = config.testing_file_name
+# training_file_name = config.training_file_name
 
-WIDTH = config.IMG_WIDTH // config.INPUT_DATA_RATIO
-HEIGHT = (config.IMG_HEIGHT - 100) // config.INPUT_DATA_RATIO
-LR = 0.01
-EPOCHS = 2
-MODEL_NAME = "f1-bot-{}-{}-{}.model".format("otherception3", LR, EPOCHS)
-starting_value = 1
+WIDTH = IMG_WIDTH // RESIZE_RATIO
+HEIGHT = IMG_HEIGHT // RESIZE_RATIO
+LR = 0.0005
+EPOCHS = 3
+model = formula_network(width=WIDTH, height=HEIGHT, lr=LR, output=4)
+MODEL_NAME = f"f1-bot-formula_network-{LR}-{EPOCHS}.model"
 
 
 def load_data():
@@ -24,14 +25,13 @@ def load_data():
 
 	while True:
 		if os.path.isfile(training_file_name.format(starting_value)):
-			data = np.append(data, np.load("data\\\shuffled\\shuffled_data-{}.npy".format(starting_value)), 0)
+			data = np.append(data, np.load(training_file_name.format(starting_value)), 0)
+			print(f"loading training data, so far {len(data)} entries have been loaded.")
 			starting_value += 1
 		else:
 			return data
 			break
 
-
-model = otherception3(WIDTH, HEIGHT, LR, 4, model_name=MODEL_NAME)
 
 # for e in range(EPOCHS):
 # 	while True:
@@ -58,7 +58,7 @@ model = otherception3(WIDTH, HEIGHT, LR, 4, model_name=MODEL_NAME)
 # data_flow.ArrayFlow(load_data())
 training_data = load_data()
 # training_data = np.load("data\\ready\\final_data-12.npy")
-train = training_data[:-3000]
+train = training_data
 test = training_data[-3000:]
 #
 # print(WIDTH, HEIGHT)
@@ -69,7 +69,7 @@ Y = [i[1] for i in train]
 test_X = np.array([i[0] for i in test]).reshape(-1, WIDTH, HEIGHT, 1)
 test_Y = [i[1] for i in test]
 
-model.fit({"input": X}, {"targets": Y}, n_epoch=EPOCHS, validation_set=({"input": test_X}, {"targets": test_Y}),
-		  snapshot_step=500, show_metric=True, run_id=MODEL_NAME)
+model.fit({"input": X}, {"targets": Y}, n_epoch=EPOCHS, validation_set=None, snapshot_step=2000, show_metric=True,
+		  run_id=MODEL_NAME, batch_size=4)
 
 model.save("models\\" + MODEL_NAME + "\\" + MODEL_NAME)

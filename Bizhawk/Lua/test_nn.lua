@@ -14,7 +14,8 @@ function setInputs(inputs)
     local current = {}
     current["A"] = inputs[1]
     current["B"] = inputs[2]
-    current["X Axis"] = tostring(tonumber(inputs[3]) * 256 - 128)
+    current["X Axis"] = tostring(tonumber(inputs[3] + 1) * 128)
+    --console.log(current["X Axis"])
     --current["Y Axis"] = tostring(tonumber(inputs[4]) * 256 - 128)
     joypad.set(current, 1)
     joypad.setanalog(current, 1)
@@ -27,8 +28,8 @@ while true do
     --if frames % 2 == 0 then
     --console.log(getControls())
     inputs = split(comm.httpGet("http://" .. host .. ":" .. port), "x")
-    console.log(inputs[3])
-    console.log(tonumber(inputs[3]) * 256 - 128)
+    --console.log(inputs)
+    --console.log(tonumaber(inputs[3]) * 256 - 128)
     setInputs(inputs)
     --console.log(comm.httpTest())
     --end

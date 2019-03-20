@@ -5,33 +5,30 @@ import cv2
 import numpy as np
 import http.server
 
-import config
+from config import IMG_WIDTH, IMG_HEIGHT, SCREEN_REGION, RESIZE_RATIO, training_file_name, testing_file_name, HOST, PORT
 from getkeys import key_check
-from util import thread_on_key
+from util import thread_on_key, render_screen
 from screen import grab_screen, place_emulator
 
-IMG_WIDTH = config.IMG_WIDTH
-IMG_HEIGHT = config.IMG_HEIGHT
+# IMG_WIDTH = config.IMG_WIDTH
+# IMG_HEIGHT = config.IMG_HEIGHT
 
-SCREEN_POS_X = config.SCREEN_POS_X
-SCREEN_POS_Y = config.SCREEN_POS_Y
-SCREEN_REGION = (SCREEN_POS_X, SCREEN_POS_Y, IMG_WIDTH + SCREEN_POS_X, IMG_HEIGHT + SCREEN_POS_Y)
+# SCREEN_POS_X = config.SCREEN_POS_X
+# SCREEN_POS_Y = config.SCREEN_POS_Y
 
-CROPPED_WIDTH = config.IMG_WIDTH
-CROPPED_HEIGHT = IMG_HEIGHT - 100
-CROPPED_POS_X = SCREEN_POS_X
-CROPPED_POS_Y = SCREEN_POS_Y + 68
-CROPPED_REGION = (CROPPED_POS_X, CROPPED_POS_Y, CROPPED_WIDTH + CROPPED_POS_X, CROPPED_HEIGHT + CROPPED_POS_Y)
+# CROPPED_WIDTH = config.IMG_WIDTH
+# CROPPED_HEIGHT = IMG_HEIGHT - 100
+# CROPPED_POS_X = SCREEN_POS_X
+# CROPPED_POS_Y = SCREEN_POS_Y + 68
+# CROPPED_REGION = (CROPPED_POS_X, CROPPED_POS_Y, CROPPED_WIDTH + CROPPED_POS_X, CROPPED_HEIGHT + CROPPED_POS_Y)
 
-INPUT_DATA_RATIO = config.INPUT_DATA_RATIO
+# INPUT_DATA_RATIO = config.INPUT_DATA_RATIO
 
-HOST = config.HOST
-PORT = config.PORT
+# HOST = config.HOST
+# PORT = config.PORT
 
-paused = False
-capture_entire_screen = False
 connected = False
-inputs = []
+inputs = [0, 0, 0, 0]
 
 
 class HttpServerHandler(http.server.BaseHTTPRequestHandler):
@@ -69,7 +66,11 @@ class HttpServerHandler(http.server.BaseHTTPRequestHandler):
 
 def set_inputs(i):
 	global inputs
-	inputs = i
+	inputs[0] = int(i[0])
+	inputs[1] = int(i[1])
+	inputs[2] = max(0, 1 - float(i[2]))
+	inputs[3] = max(0, float(i[2]) - 1)
+
 
 def set_connected():
 	global connected
@@ -80,7 +81,7 @@ def set_connected():
 
 def get_file_name(starting_value=1):
 	while True:
-		file_name = config.training_file_name.format(starting_value)
+		file_name = training_file_name.format(starting_value)
 
 		if os.path.isfile(file_name):
 			print("File", file_name, "already exists. Counting up.")
@@ -105,13 +106,14 @@ def key_output(keys):
 
 
 def record_data():
+	global inputs
 	name_and_position = get_file_name()
 	file_name = name_and_position[0]
 	starting_value = name_and_position[1]
 
-	for i in range(0, 3):
-		print("Recording data in", 3 - i, "...")
-		time.sleep(1)
+	# for i in range(0, 3):
+	# 	print(f"Recording data in {3 - i}...")
+	# 	time.sleep(1)
 
 	training_data = []
 	paused = False
@@ -120,33 +122,23 @@ def record_data():
 
 	while True:
 		# timestamp = time.time()
-		if not paused:
-			# if capture_entire_screen:
-			# 	screen = grab_screen(SCREEN_REGION)
-			# 	screen = cv2.resize(screen, (int(IMG_WIDTH / 4), int(IMG_HEIGHT / 4)))
-			# else:
-			# 	screen = grab_screen(CROPPED_REGION)
-			# 	screen = cv2.resize(screen, (int(CROPPED_WIDTH / 4), int(CROPPED_HEIGHT / 4)))
-			screen = grab_screen(CROPPED_REGION)
-			screen = cv2.resize(screen, (int(CROPPED_WIDTH // INPUT_DATA_RATIO),
-										 int(CROPPED_HEIGHT // INPUT_DATA_RATIO)))
-			# screen = cv2.Canny(screen, 200, 300, True)
-			screen = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
-			#
 
-			# cv2.imshow("test", screen)
-			# if cv2.waitKey(25) & 0xFF == ord("q"):
-			#  	cv2.destroyAllWindows()
-			keys = key_check()
-			output = key_output(keys)
-			print(output)
-			# training_data.append([screen, screen_grey, screen_canny, output])
+		if not paused:
+
+			screen = cv2.resize(grab_screen(SCREEN_REGION), ((IMG_WIDTH // RESIZE_RATIO), (IMG_HEIGHT // RESIZE_RATIO)))
+			screen = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
+			# render_screen(screen)
+
+			# inputs = key_output(key_check())
 			# print(inputs)
-			training_data.append([screen, output])
+
+			training_data.append([screen, inputs])
+
+			# code for analog controls recorded via HTTP Server
 			# training_data.append([screen, inputs])
 			# print(training_data)
 
-			# print("look toop {} seconds".format(time.time() - timestamp))
+			# print("look took {} seconds".format(time.time() - timestamp))
 
 			if len(training_data) % 100 == 0:
 				print("{} captures made".format(len(training_data)))
@@ -155,7 +147,8 @@ def record_data():
 					print("1000 captures saved at {}".format(file_name))
 					training_data = []
 					starting_value += 1
-					file_name = config.training_file_name.format(starting_value)
+					file_name = training_file_name.format(starting_value)
+
 		keys = key_check()
 		if "P" in keys:
 			if paused:
@@ -176,19 +169,20 @@ def record_data():
 
 def main():
 	place_emulator()
+
+	# Starting the HTTP Server to receive input data from bizhawk emulator
 	print("Starting HTTP Server")
 	httpd = http.server.HTTPServer((HOST, PORT), HttpServerHandler)
-	print("Running HTTP server at: {}:{}".format(httpd.server_address[0], httpd.server_address[1]))
 	thread_http = threading.Thread(target=httpd.serve_forever, name="thread_http")
-	thread_recording = threading.Thread(target=record_data, name="thread_recording")
 	thread_http.start()
-	print("")
+	print("Running HTTP server at: {}:{}".format(httpd.server_address[0], httpd.server_address[1]))
+
+	thread_recording = threading.Thread(target=record_data, name="thread_recording")
 	print("Waiting for you to setup connection between emulator and http server in order to record input data")
 	print("Hold \'G\' on your keyboard to start recording")
-	thread_control = threading.Thread(target=thread_on_key, name="thread_control",
-									  args=("G", thread_recording))
+	thread_control = threading.Thread(target=thread_on_key, name="thread_control", args=("G", thread_recording))
 	thread_control.start()
-	time.sleep(4)
+	time.sleep(2)
 
 
 main()

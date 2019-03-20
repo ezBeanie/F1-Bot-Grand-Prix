@@ -1,12 +1,11 @@
 import numpy as np
 import cv2
 import os
-import config
-from collections import Counter
+from config import *
 from random import randint
 
-training_file_name = config.training_file_name
-testing_file_name = config.testing_file_name
+# training_file_name = config.training_file_name
+# testing_file_name = config.testing_file_name
 
 starting_value = 0
 final_value = 1
@@ -19,10 +18,10 @@ def shuffle_data(data):
 	for x in range(len(data)):
 		i = randint(0, len(data) - 1)
 		j = randint(0, len(data) - 1)
-		tmpa = data[i]
-		tmpb = data[j]
-		data[i] = tmpb
-		data[j] = tmpa
+		tmp_a = data[i]
+		tmp_b = data[j]
+		data[i] = tmp_b
+		data[j] = tmp_a
 	return data
 
 
@@ -30,7 +29,7 @@ while True:
 	if os.path.isfile(training_file_name.format(starting_value + 1)):
 		# training_data = np.append(training_data, np.load(training_file_name.format(starting_value)), 0)
 		starting_value += 1
-		# print(starting_value)
+	# print(starting_value)
 	else:
 		break
 
@@ -45,12 +44,11 @@ while True:
 	# end = (r * 1000)
 	# final_data = shuffle_data(training_data[start:end:])
 	final_data = shuffle_data(np.load(training_file_name.format(r)))
-	# np.save("data\\shuffled\\shuffled_data-{}.npy".format(final_value), final_data)
+	np.save(testing_file_name.format(final_value), final_data)
 	final_value += 1
 	done_batches.append(r)
 	if len(done_batches) == starting_value:
 		break
-
 
 # print(final_data)
 # print(len(final_data))
@@ -74,13 +72,13 @@ while True:
 # print(df.all)
 # print(len(final_data))
 
-for data in final_data:
-	img = data[0]
-	print(data[1])
-	cv2.imshow("test", img)
-	print(cv2.getWindowImageRect("test"))
-	if cv2.waitKey(25) & 0xFF == ord("q"):
- 		cv2.destroyAllWindows()
+# for data in final_data:
+# 	img = data[0]
+# 	print(data[1])
+# 	cv2.imshow("test", img)
+# 	print(cv2.getWindowImageRect("test"))
+# 	if cv2.waitKey(25) & 0xFF == ord("q"):
+#  		cv2.destroyAllWindows()
 
 i = 1
 while True:

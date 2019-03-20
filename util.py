@@ -86,3 +86,9 @@ def rgbfrombytes(byte_a, byte_b):
 	b = (b >> 1)
 	b = b / 31 * 255
 	return [r, g, b]
+
+
+def render_screen(screen, title="Screen"):
+	cv2.imshow(title, screen)
+	if cv2.waitKey(25) & 0xFF == ord("q"):
+		cv2.destroyAllWindows()
